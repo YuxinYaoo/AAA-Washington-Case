@@ -1,0 +1,148 @@
+---
+title: "AAA-Washington-Case"
+author: "Yuxin Yao"
+date: "2024-12-15"
+output: pdf_document
+---
+
+# AAA Washington Case
+
+In 1993, AAA Washington was one of the two regional automobile clubs affiliated with the American Automobile Association (AAA) operating in Washington State.
+
+Club research had consistently shown that the emergency road service benefit was the primary reason that people join AAA. Providing emergency road service was also the club's single largest operating expense. It was projected that delivering emergency road service would cost $9.5 million, 37% of the club's annual operating budget, in the next fiscal year. 
+
+Michael DeCoria objective is to find a way to predict emergency road service call volume for future years.The data on emergency road service call volume is given in **AAAdata.csv**. 
+
+Previous analysis addressed the effect of average daily temperature on emergency road service call volume. We've found that the temperature's effect is significant and could explain about half of calls volume variability. We have also discovered that temperature alone does not account for the autocorrelations withing the calls volume series. We have recommended Michael to model these patterns using ARIMA models. He has extended your contract as a consultant to help him apply Box-Jenkins models.
+
+(1.) Visualise the data
+
+Use the monthly data of the calls volume, _Calls_, is recorded from May, 1988 till April, 1993. Produce a time plot of the data, label the axis nicely. 
+```{r}
+data <- read.csv("AAA.csv")
+head(data)
+data.ts <- ts(data$Calls, start = c(1988, 5), frequency = 12)
+library(forecast)
+autoplot(data.ts, xlab='', ylab='Calls')
+```
+we can see seasonality, trend
+
+(2.) Split the time series into training and validation sets. Leave the last 6 months for the testing set. Use the training set to get ACF and PACF plots. 
+```{r}
+train.ts <- head(data.ts, (length(data.ts)- 6))
+valid.ts <- tail(data.ts, 6)
+```
+
+```{r}
+par(mfrow=c(1,2))
+Acf(train.ts, 10)
+Pacf(train.ts, 10)
+par(mfrow=c(1,1))
+```
+(1,0,0)( ,0, ) 
+acf seems to tail off, pacf cuts off -- AR(1)
+
+both cut off, no pattern on the list.
+but try arma(1,1)
+
+```{r}
+# seasonal
+par(mfrow=c(1,2))
+Acf(train.ts, 40)
+Pacf(train.ts, 40)
+par(mfrow=c(1,1))
+```
+seasonal:
+(1,0,0)(1,0,0)
+acf tails off, pacf cuts off -- AR(1)
+SAR(1)
+
+
+both cut off, no pattern on the list, 
+but try arima(1,1)(?) 
+(1,0,1)*(1,0,0)12
+seasonality will be spike at 12. and there is a trend.
+
+```{r}
+par(mfrow=c(1,2))
+Acf(diff(train.ts, 12), 10)
+Pacf(diff(train.ts, 12), 10)
+par(mfrow=c(1,1))
+```
+we can try (1,0,1) since it is not clear what is going on.
+(0,0,1) maybe
+(0,0,0)
+
+(3.) After a quick discussion with Michael I've decided to check the performance of the following models:
+
+(@) SARIMA(1,0,0)x(1,0,0)12, 
+(@) SARIMA(1,0,0)x(1,1,0)12, 
+(@) SARIMA(1,0,0)x(0,1,0)12, 
+(@) SARIMA(1,0,1)x(0,1,0)12, 
+(@) SARIMA(0,0,1)x(0,1,0)12,
+(@) SARIMA(1,1,1)x(0,1,1)12.
+
+Fit the models and access their accuracy. Report all supporting material. 
+```{r}
+# one of the options we might consider in previous question
+m = arima(train.ts, order = c(0,0,0), 
+           seasonal = list(order= c(0,1,0), 
+                           period=12))
+m.p = forecast(m, h=length(valid.ts))
+accuracy(m.p, valid.ts)
+
+m1 = arima(train.ts, order = c(1,0,0), 
+           seasonal = list(order= c(1,0,0), 
+                           period=12))
+m2 = arima(train.ts, order = c(1,0,0), 
+           seasonal = list(order= c(1,1,0), 
+                           period=12))
+m3 = arima(train.ts, order = c(1,0,0), 
+           seasonal = list(order= c(0,1,0), 
+                           period=12))
+m4 = arima(train.ts, order = c(1,0,1), 
+           seasonal = list(order= c(0,1,0), 
+                           period=12))
+m5 = arima(train.ts, order = c(0,0,1), 
+           seasonal = list(order= c(0,1,0), 
+                           period=12))
+m6 = arima(train.ts, order = c(1,1,1), 
+           seasonal = list(order= c(0,1,1), 
+                           period=12))
+
+m1.predict = forecast(m1, h=length(valid.ts))
+m2.predict = forecast(m2, h=length(valid.ts))
+m3.predict = forecast(m3, h=length(valid.ts))
+m4.predict = forecast(m4, h=length(valid.ts))
+m5.predict = forecast(m5, h=length(valid.ts))
+m6.predict = forecast(m6, h=length(valid.ts))
+
+
+accuracy(m1.predict, valid.ts)
+accuracy(m2.predict, valid.ts)
+accuracy(m3.predict, valid.ts)
+accuracy(m4.predict, valid.ts)
+accuracy(m5.predict, valid.ts)
+accuracy(m6.predict, valid.ts)
+```
+Propose the best model for the calls volume forecasting. Report its estimated accuracy, comment on its robustness.
+the best model is SARIMA(1,0,0)x(0,1,0)12, since it has the lowest MAPE.
+
+
+(4.) Test the best model's assumptions: check whether the residuals are approximately normal and independent. Visual analysis techniques suffice. Include your spript, comments, and all supporting aterial.
+```{r}
+checkresiduals(m3)
+```
+the residuals are approximately normal and independent. 
+
+(5.) Write a short report for Mr. DeCoria summarizing your findings. Provide the best model he should use to forecast the calls volume and the estimated error rate he should expect. 
+```{r}
+m3f = arima(data.ts, order = c(1,0,0), 
+           seasonal = list(order= c(0,1,0), 
+                           period=12))
+m3f.predict = forecast(m3f, h=18)
+m3f.predict # May 1994 is 19765.59
+```
+The best model is SARIMA(1,0,0)x(0,1,0)12, because it has the lowest error. The forecast for May 1994 is 19765.59.
+
+
