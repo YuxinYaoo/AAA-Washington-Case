@@ -1,5 +1,6 @@
 # Time_series_forecasting_AAA_Washington_Case
 1. Box-Jenkins Models
+
 (1) Visualise the data;
 
 (2) Find the ACF and PACF; Propose several models based on analysis of ACF and PACF.
@@ -12,6 +13,7 @@
 
 
 2. Time series regression models
+
 (1) Visualise the data;
 
 (2) Create a new temperature variable; Plot two scatterplots: 1. the regular temperature vs. calls volume; 2. the new temperature variable vs. calls volume. Comment on the patterns.
