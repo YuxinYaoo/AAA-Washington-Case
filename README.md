@@ -1,5 +1,5 @@
 # Time_series_forecasting_AAA_Washington_Case
-1. Box-Jenkins Models
+## 1. Box-Jenkins Models
 
 (1) Visualise the data;
 
@@ -12,7 +12,7 @@
 (5) Provide recommendations to Mr. DeCoria.
 
 
-2. Time series regression models
+## 2. Time series regression models
 
 (1) Visualise the data;
 
