@@ -1,13 +1,15 @@
 ---
-title: "AAA Case"
-author: "Yuxin Yao"
-date: "2024-12-15"
-output: pdf_document
+title: 'Applied Time Series Analysis for Forecasting'
+author: 'Time series regression models'
+output:
+  pdf_document: default
+  word_document: default
+header-includes: \usepackage{color}
 ---
 
 # AAA Washington Case
 
-Based on excellent performance and great recommendations from Mr. Tux Michael DeCoria had offered you a contract as a consultant to AAA. Your goal is to assist Mr DeCoria in finding a way to predict emergency road service call volume for future years.
+Based on your excellent performance and great recommendations from Mr. Tux Michael DeCoria had offered you a contract as a consultant to AAA. Your goal is to assist Mr DeCoria in finding a way to predict emergency road service call volume for future years.
 Their previous analysis addressed the effect of average daily temperature on emergency road service call volume. It has been found that the temperature's effect is significant and could explain about half of calls volume variability. You have also used the Box-Jenkins models and found that you can predict the future AAA calls volume based on the past records with average error rate about 6%.
 
 After discussing your findings with Michael you decide to combine the two approached and explore the ADL models. 
@@ -18,7 +20,7 @@ Michael DeCoria stated that he believes the number of road service calls receive
 
 The data on emergency road service call volume, average monthly temperature and the Washington State unemployment rate are given in **AAAdatacleaned.csv**. 
 
-(@) Upload the data into R. Create time series objects for the calls, temperature, and unemployment rate variables. Plot all three variables, label the axis. Comment on the time series. 
+(@) Upload the data into R. Create time series objects for the calls, temperature, and unemployment rate variables. Plot all three variables, label the axis. Comment on the time series. Include your script.
 ```{r}
 data = read.csv("AAAdatacleaned.csv")
 Call.ts = ts(data$Calls, start = c(1988,8), 
@@ -32,8 +34,8 @@ autoplot(Temp.ts, xlab='', ylab='Temperature')
 autoplot(Rate.ts, xlab='', ylab='Unemployment rate')
 
 ```
+level, noise, seasonality
 
-there is level, noise, seasonality
 
 (@)	Create a new temperature variable. Remember that temperature is a relative scale and that the selection of the zero point is arbitrary. If vehicles are designed to operate best at 60 degrees Fahrenheit, then every degree above or below 60 degrees should make vehicles operate less reliably. To accomplish a transformation of the temperature data that simulates this effect, begin by subtracting 60 from average monthly temperature values. This repositions "zero" to 60 degrees Fahrenheit. Use the absolute value of this new temperature variable. Plot two scatterplots: 1. the regular temperature vs. calls volume; 2. the new temperature variable vs. calls volume. Comment on the patterns. Include your script and the plot.
 ```{r}
@@ -41,30 +43,37 @@ newtemp.ts = abs(Temp.ts - 60)
 plot(as.vector(newtemp.ts), as.vector(Call.ts), xlab = "New temperature", ylab = "calls volume")
 plot(as.vector(Temp.ts), as.vector(Call.ts), xlab = "temperature", ylab = "calls volume")
 ```
-It is not pretty linear.
+not pretty linear.
 the temperature below 60 seems to be downward trend, the temperature above 60 seems to be upward trend.
 
-(@) Study the cross-correlations between the unemployment rate and the calls volume. Is the unemployment rate leading the calls and if yes, by how much? In›clude your script, comments, and the ccf plot.
+(@) Study the cross-correlations between the unemployment rate and the calls volume. Is the unemployment rate leading the calls and if yes, by how much? Include your script, comments, and the ccf plot.
 ```{r}
-tmp=Ccf(Rate.ts, Call.ts, 12)
-tmp
+Ccf(Rate.ts, Call.ts)
+Ccf(newtemp.ts, Call.ts)
 ```
+
 There is a significant correlation between calls volume and unemployment rates at lags -3 and -10. Let's build two models.
+and then choose the best one.
+
 
 (@)	Create a lagged unemployment rate variable and relate it to emergency road service based on your ccf analysis. Fit the model using lagged unemployment as a predictor.
+
 Are the coefficients of the independent variables significantly different from zero? Report adjusted coefficients of determination, RMSE, and MAPE for both models.
+
+Include your script, R output, and clear comments.
 ```{r}
-data$LaggedRate = lag(data$Rate, -4)
-
-lagged_model = lm(Calls ~ LaggedRate, data = data)
-
-summary(lagged_model)
-
-# Predicted values
-predicted_lagged <- predict(lagged_model)
-accuracy(predicted_lagged, data$Calls)
+newdata<-ts.intersect(Call.ts, unempL3= lag(Rate.ts, -3), unempL10=lag(Rate.ts,-10), temp=newtemp.ts)
+m1<-tslm(Call.ts~unempL3, data=newdata)
+summary(m1)
+accuracy(m1)
 ```
-Both the intercept and the coefficient for LaggedRate are significantly different from zero. and the r-squared is low, RMSE is a little high.
+```{r}
+m2<-tslm(Call.ts~unempL10, data=newdata)
+summary(m2)
+accuracy(m2)
+```
+The second model that uses the unemployment rate from 10 months ago is better at predicting the number of the service calls. It has a positive correlation, which is expected, i.e. the higher the unemployment the higher the number of calls. Even though, the coefficients for the unemployment variables are significant for both model, model 2 is highly significant and model 1 is barely significant. Model 2 is more accurate.
+
 
 (@)	Develop a multiple regression equation using the new transformed average temperature variable created in and the lagged unemployment variable created earlier that describe the calls volume the best. 
 
@@ -72,20 +81,17 @@ Is this a good model? Report the adjusted coefficients of determination, RMSE, a
 
 Have any of the underlying assumptions been violated?
 ```{r}
-multi_model <- lm(Calls ~ LaggedRate + abs(Temp - 60), data = data)
-summary(multi_model)
-predicted_multi <- predict(multi_model)
-accuracy(predicted_multi, data$Calls)
-
-checkresiduals(multi_model)
+m3<-tslm(Call.ts~temp + unempL10, data=newdata)
+summary(m3)
+anova(m3)
+accuracy(m3)
+checkresiduals(m3)
 ```
-R-squared is not bad, but RMSE is a little high. 
-it is fairly normal, However, they are not independent, see ACF at lag 1.
+R-squared is not bad, but RMSE is lower than previous two models. 
+it is fairly normal, However, it is a little not independent, see ACF at lag 1.
 So the model need to improve.
 
 (@)	Prepare a memo to Michael recommending the regression model you believe is more appropriate for predicting the  emergency road service call volume. Write it in a paragraph form and keep in mind that Mr. DeCoria is not an expert in time series analysis or R. Therefore, don't be too technical.
 
-Based on the analysis performed, I recommend using a multiple regression model that combines lagged unemployment rates and a transformed temperature variable (absolute deviation from 60°F) to predict emergency road service call volume. The model is effective because it combines the nonlinear effects of economic factors and temperature on vehicle performance. The results show that the transformed temperature variable is a significant predictor with a strong relationship with call volume. The model has a high adjusted R-squared value of 64.18%, which means that it explains a large portion of the variation in call volume. what's more, it provides a low RMSE and MAPE, confirming the accuracy of its predictions.
-
-While the unemployment rate not show a strong independent effect, combining it with the temperature variable helps capture other trends in the data. The model's residuals were tested and while some slight serial correlation was detected, the model was generally robust and provided reliable forecasts. I believe this approach balances complexity and practicality to ensure accurate predictions while maintaining comprehensibility for operational use.
-
+Mr. DeCoria,
+After creating multiple models, we have found that a model that considers both temperature and unemployment is the best fit. Using the information that cars perform most reliably at 60 degrees, we made changes to the data in order to identify if there is a relationship between temperature and car breakdowns. The result was that there is a linear relationship between temperature and breakdowns, so it should be used in the model. Unemployment also proved to be significant, when looking at it multiple data points in the past, or considering the long term effect. After finding that both temperature and unemployment are significant, we created a model that combines both variables. As of now, the model we have build has an error rate of 3.13%, so you can expect it to be off by this percentage. The model meets the assumptions necessary for us to consider it acceptable. However, there are still some problems with the model, as the errors seem to have some correlation. In order to improve, we should build a model that incorporates past calls.
